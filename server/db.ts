@@ -33,7 +33,7 @@ interface DatabaseSchema {
 }
 
 export interface DatabaseStatus {
-  mode: 'postgres' | 'file';
+  mode: 'postgres';
   connected: boolean;
   databaseName?: string;
   host?: string;
@@ -49,19 +49,7 @@ export interface DatabaseStatus {
   };
 }
 
-const isServerless = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const BASE_DATA_DIR = path.resolve(process.cwd(), 'data');
-const ORIGINAL_DB_FILE = path.join(BASE_DATA_DIR, 'db.json');
-const DATA_DIR = isServerless ? '/tmp' : BASE_DATA_DIR;
-const DB_FILE = isServerless ? path.join('/tmp', 'db.json') : ORIGINAL_DB_FILE;
 const ENV_FILE = path.resolve(process.cwd(), '.env');
-
-// Ensure data folder exists safely
-try {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-} catch (_) {}
 
 // Default Seed Data Generator
 async function generateInitialDatabase(): Promise<DatabaseSchema> {
@@ -307,47 +295,21 @@ class DatabaseService {
   async init(): Promise<void> {
     if (this.initialized) return;
 
-    // 1. Copy seed database to /tmp if in serverless environment
-    if (isServerless && !fs.existsSync(DB_FILE) && fs.existsSync(ORIGINAL_DB_FILE)) {
-      try {
-        fs.copyFileSync(ORIGINAL_DB_FILE, DB_FILE);
-      } catch (e) {
-        console.warn('Could not copy initial db.json to /tmp:', e);
-      }
-    }
+    // Baseline memory schema structure
+    this.data = await generateInitialDatabase();
 
-    // 2. Load baseline local file data
-    const targetFileToRead = fs.existsSync(DB_FILE)
-      ? DB_FILE
-      : fs.existsSync(ORIGINAL_DB_FILE)
-      ? ORIGINAL_DB_FILE
-      : null;
-
-    if (targetFileToRead) {
-      try {
-        const raw = fs.readFileSync(targetFileToRead, 'utf-8');
-        this.data = JSON.parse(raw);
-      } catch (err) {
-        console.error('Error reading local DB_FILE, rebuilding from seed...', err);
-        this.data = await generateInitialDatabase();
-      }
-    } else {
-      this.data = await generateInitialDatabase();
-      this.saveToFile();
-    }
-
-    // 3. Check for PostgreSQL connection URI
+    // Check for PostgreSQL connection URI
     const postgresUri =
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
-      process.env.POSTGRESQL_URL ||
-      (process.env.MONGODB_URI?.startsWith('postgres') ? process.env.MONGODB_URI : undefined);
+      process.env.POSTGRESQL_URL;
 
     if (postgresUri && postgresUri.trim()) {
-      console.log('🐘 Found PostgreSQL URI in environment. Attempting connection to Neon / PostgreSQL...');
+      console.log('🐘 PostgreSQL URI found. Connecting strictly to PostgreSQL database...');
       await this.connectPostgres(postgresUri.trim(), false);
     } else {
-      console.log('ℹ️ Running in persistent file storage mode (data/db.json). PostgreSQL URI can be configured via .env or Admin settings.');
+      this.dbError = 'DATABASE_URL is not configured. PostgreSQL connection is required.';
+      console.warn('⚠️ No PostgreSQL URI provided. System operates strictly with PostgreSQL.');
     }
 
     this.initialized = true;
@@ -433,7 +395,7 @@ class DatabaseService {
     }
   }
 
-  // Disconnect from PostgreSQL and revert to local storage
+  // Disconnect from PostgreSQL
   async disconnectPostgres(): Promise<{ success: boolean; message: string }> {
     try {
       if (this.pool) {
@@ -441,12 +403,12 @@ class DatabaseService {
       }
       this.pool = null;
       this.isConnected = false;
-      this.dbError = null;
+      this.dbError = 'Database disconnected';
       this.uriMasked = '';
       this.dbName = '';
       this.dbHost = '';
-      console.log('🔌 Disconnected from PostgreSQL. Reverted to local file storage.');
-      return { success: true, message: 'Disconnected from PostgreSQL. Reverted to local file storage.' };
+      console.log('🔌 Disconnected from PostgreSQL.');
+      return { success: true, message: 'Disconnected from PostgreSQL.' };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Error disconnecting from PostgreSQL' };
     }
@@ -775,7 +737,6 @@ class DatabaseService {
           }));
         }
 
-        this.saveToFile();
         console.log('✅ Synchronized PostgreSQL tables to in-memory store.');
       } else {
         console.log('📤 PostgreSQL tables are empty. Migrating local database records to PostgreSQL...');
@@ -885,14 +846,6 @@ class DatabaseService {
     }
   }
 
-  private saveToFile(): void {
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch (err) {
-      console.warn('Notice: Could not write local db.json snapshot (normal in serverless if /tmp full):', err);
-    }
-  }
-
   // Accessors
   get admins(): AdminUser[] { return this.data.admins; }
   get students(): Student[] { return this.data.students; }
@@ -913,11 +866,10 @@ class DatabaseService {
   set certificates(val: Certificate[]) { this.data.certificates = val; }
   set courses(val: Course[]) { this.data.courses = val; }
 
-  // Direct Atomic PostgreSQL & In-Memory Operations
+  // Direct Atomic PostgreSQL Operations
   async insertStudent(student: Student): Promise<void> {
     this.data.students = this.data.students.filter((s) => s.id !== student.id);
     this.data.students.unshift(student);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -939,7 +891,6 @@ class DatabaseService {
     } else {
       this.data.students.unshift(student);
     }
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -954,7 +905,6 @@ class DatabaseService {
 
   async deleteStudent(studentId: string): Promise<void> {
     this.data.students = this.data.students.filter((s) => s.id !== studentId);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query('DELETE FROM students WHERE id = $1;', [studentId]);
@@ -967,7 +917,6 @@ class DatabaseService {
   async insertCertificate(cert: Certificate): Promise<void> {
     this.data.certificates = this.data.certificates.filter((c) => c.id !== cert.id);
     this.data.certificates.unshift(cert);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -984,7 +933,6 @@ class DatabaseService {
 
   async deleteCertificate(certId: string): Promise<void> {
     this.data.certificates = this.data.certificates.filter((c) => c.id !== certId);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query('DELETE FROM certificates WHERE id = $1;', [certId]);
@@ -997,7 +945,6 @@ class DatabaseService {
   async insertCourse(course: Course): Promise<void> {
     this.data.courses = this.data.courses.filter((c) => c.id !== course.id);
     this.data.courses.unshift(course);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -1019,7 +966,6 @@ class DatabaseService {
     } else {
       this.data.courses.unshift(course);
     }
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -1034,7 +980,6 @@ class DatabaseService {
 
   async deleteCourse(courseId: string): Promise<void> {
     this.data.courses = this.data.courses.filter((c) => c.id !== courseId);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query('DELETE FROM courses WHERE id = $1;', [courseId]);
@@ -1051,7 +996,6 @@ class DatabaseService {
     } else {
       this.data.enrollments.unshift(enrollment);
     }
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -1068,7 +1012,6 @@ class DatabaseService {
 
   async deleteEnrollment(enrollmentId: string): Promise<void> {
     this.data.enrollments = this.data.enrollments.filter((e) => e.id !== enrollmentId);
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query('DELETE FROM enrollments WHERE id = $1;', [enrollmentId]);
@@ -1080,7 +1023,6 @@ class DatabaseService {
 
   async saveSettings(settings: InstituteSettings): Promise<void> {
     this.data.settings = settings;
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       try {
         await this.pool.query(
@@ -1096,14 +1038,12 @@ class DatabaseService {
 
   // General sync mutation
   async persistAsync(): Promise<void> {
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       await this.syncToPostgresAsync();
     }
   }
 
   persist(): void {
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       this.syncToPostgresAsync().catch((err) => console.error('PostgreSQL async persist error:', err));
     }
@@ -1111,7 +1051,7 @@ class DatabaseService {
 
   getDatabaseStatus(): DatabaseStatus {
     return {
-      mode: this.isConnected ? 'postgres' : 'file',
+      mode: 'postgres',
       connected: this.isConnected,
       databaseName: this.dbName || undefined,
       host: this.dbHost || undefined,
@@ -1143,7 +1083,6 @@ class DatabaseService {
     if (this.data.auditLogs.length > 500) {
       this.data.auditLogs = this.data.auditLogs.slice(0, 500);
     }
-    this.saveToFile();
     if (this.pool && this.isConnected) {
       this.pool.query(
         `INSERT INTO audit_logs (id, timestamp, actor, action, entity_type, entity_id, details, ip_address)

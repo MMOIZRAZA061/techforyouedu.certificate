@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { api, setAdminAuth } from '../../api/client';
 
 interface AdminLoginViewProps {
@@ -63,8 +63,9 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@techforyou.edu"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                  placeholder="name@organization.com"
+                  autoComplete="email"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
                 />
               </div>
             </div>
@@ -80,14 +81,15 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter administrator password"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
                 />
               </div>
             </div>
 
             {errorMessage && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 font-medium">
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 font-medium animate-in fade-in">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{errorMessage}</span>
               </div>
@@ -103,11 +105,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             </button>
           </form>
 
-          <div className="pt-2 text-center space-y-2">
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Default Administrator Account: <span className="font-mono text-slate-600">admin@techforyou.edu</span></span>
-            </div>
+          <div className="pt-2 text-center">
             <button
               onClick={() => onNavigate('home')}
               className="text-xs text-slate-500 hover:text-emerald-700 transition-colors cursor-pointer"

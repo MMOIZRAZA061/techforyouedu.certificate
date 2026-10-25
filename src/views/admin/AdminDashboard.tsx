@@ -257,13 +257,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   };
 
   const handleDisconnectPostgres = async () => {
-    if (!window.confirm('Are you sure you want to disconnect from PostgreSQL? The system will revert to local file storage (data/db.json).')) {
+    if (!window.confirm('Are you sure you want to disconnect from PostgreSQL?')) {
       return;
     }
     try {
       const res = await api.disconnectDatabase();
       if (res.success) {
-        showNotification('info', res.message || 'Reverted to local file storage.');
+        showNotification('info', res.message || 'Disconnected from PostgreSQL.');
         setDbStatus(res.data);
         loadAllData();
       }
@@ -626,7 +626,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   <span>
                     {dbStatus?.connected
                       ? (dbStatus?.mode === 'postgres' ? 'Neon PostgreSQL' : 'PostgreSQL')
-                      : 'Local File DB'}
+                      : 'PostgreSQL Offline'}
                   </span>
                 </button>
               </div>
@@ -2474,23 +2474,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       <h2 className="text-lg font-bold">
                         {dbStatus?.connected
                           ? (dbStatus?.mode === 'postgres' ? 'Neon PostgreSQL Connected' : 'Cloud Database Connected')
-                          : 'Embedded Local File Store'}
+                          : 'PostgreSQL Database Offline'}
                       </h2>
                       <span
                         className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1.5 ${
                           dbStatus?.connected
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-rose-100 text-rose-800 border border-rose-300'
                         }`}
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
                             dbStatus?.connected
                               ? 'bg-emerald-400 animate-pulse'
-                              : 'bg-amber-500'
+                              : 'bg-rose-500'
                           }`}
                         />
-                        {dbStatus?.connected ? 'ONLINE & ACTIVE' : 'FILE BACKED'}
+                        {dbStatus?.connected ? 'ONLINE & ACTIVE' : 'DISCONNECTED'}
                       </span>
                     </div>
 
@@ -2501,7 +2501,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     >
                       {dbStatus?.connected
                         ? `Live persistent PostgreSQL database. Database: "${dbStatus?.databaseName || 'neondb'}" (Host: ${dbStatus?.host || 'Neon Serverless Pooler'})`
-                        : 'Operating on embedded local JSON file storage (data/db.json). Ready to connect to Neon PostgreSQL.'}
+                        : 'PostgreSQL database is currently disconnected. Please configure your DATABASE_URL to connect.'}
                     </p>
 
                     {dbStatus?.uriMasked && (
@@ -2681,10 +2681,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   <div className="text-[11px] text-slate-400 flex items-center justify-between">
                     <span>Engine Type:</span>
                     <span className="font-semibold text-slate-700 capitalize">
-                      {dbStatus?.connected ? 'Neon PostgreSQL (Pooler)' : 'Embedded JSON'}
+                      {dbStatus?.connected ? 'Neon PostgreSQL (Pooler)' : 'PostgreSQL'}
                     </span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Vercel Deployment & Environment Download Section */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-6 border border-slate-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase font-extrabold tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    VERCEL READY
+                  </span>
+                  <h3 className="text-sm font-bold text-white">Vercel Environment Files (.env & .zip)</h3>
+                </div>
+                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                  Download the ready-to-use <code className="text-emerald-300 font-mono">.env</code> file or download the <code className="text-emerald-300 font-mono">vercel-env.zip</code> bundle to import directly into your Vercel Project Settings.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <a
+                  href="/api/download-env"
+                  download=".env"
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download .env File</span>
+                </a>
+                <a
+                  href="/api/download-zip"
+                  download="vercel-env.zip"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-600 transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>Download .env ZIP</span>
+                </a>
               </div>
             </div>
 

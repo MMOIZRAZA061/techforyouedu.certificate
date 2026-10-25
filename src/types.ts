@@ -246,7 +246,7 @@ export interface AuditLog {
 }
 
 export interface DatabaseStatus {
-  mode: 'postgres' | 'mongodb' | 'file';
+  mode: 'postgres';
   connected: boolean;
   databaseName?: string;
   host?: string;

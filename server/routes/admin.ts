@@ -1076,7 +1076,7 @@ router.post('/database/sync', async (req: AuthenticatedRequest, res: Response) =
 router.post('/database/disconnect', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const result = await db.disconnectPostgres();
-    db.addAuditLog(req.user!.email, 'SETTINGS_UPDATED', 'settings', undefined, 'Disconnected from PostgreSQL. Reverted to local file storage.', req.ip);
+    db.addAuditLog(req.user!.email, 'SETTINGS_UPDATED', 'settings', undefined, 'Disconnected from PostgreSQL database.', req.ip);
     res.json({
       success: true,
       message: result.message,
