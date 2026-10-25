@@ -28,7 +28,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     admin.lastLogin = new Date().toISOString();
-    db.persist();
+    await db.updateAdmin(admin);
 
     const token = jwt.sign(
       {
@@ -77,7 +77,7 @@ router.get('/me', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   });
 });
 
-router.post('/change-password', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+router.post('/change-password', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {
@@ -103,7 +103,7 @@ router.post('/change-password', requireAdmin, (req: AuthenticatedRequest, res: R
     }
 
     admin.passwordHash = bcryptjs.hashSync(newPassword, 10);
-    db.persist();
+    await db.updateAdmin(admin);
 
     db.addAuditLog(admin.email, 'PASSWORD_CHANGED', 'auth', admin.id, `Password changed by ${admin.email}`, req.ip);
 

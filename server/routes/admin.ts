@@ -392,7 +392,7 @@ router.get('/enrollments', (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Quick Enroll or regular Enroll
-router.post('/enrollments', (req: AuthenticatedRequest, res: Response) => {
+router.post('/enrollments', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { studentId, courseId, enrollmentDate, registerStudent } = req.body;
 
@@ -453,8 +453,7 @@ router.post('/enrollments', (req: AuthenticatedRequest, res: Response) => {
       updatedAt: new Date().toISOString(),
     };
 
-    db.enrollments.unshift(newEnrollment);
-    db.persist();
+    await db.saveEnrollment(newEnrollment);
 
     db.addAuditLog(req.user!.email, 'STUDENT_ENROLLED', 'enrollment', newEnrollment.id, `Enrolled student ${targetStudentId} into course ${courseId}`, req.ip);
 
@@ -465,7 +464,7 @@ router.post('/enrollments', (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Update Marks & Compute Grades
-router.put('/enrollments/:id/marks', (req: AuthenticatedRequest, res: Response) => {
+router.put('/enrollments/:id/marks', async (req: AuthenticatedRequest, res: Response) => {
   const enrollment = db.enrollments.find((e) => e.id === req.params.id);
   if (!enrollment) {
     res.status(404).json({ success: false, message: 'Enrollment record not found.' });
@@ -508,7 +507,7 @@ router.put('/enrollments/:id/marks', (req: AuthenticatedRequest, res: Response) 
   if (completionDate) enrollment.completionDate = completionDate;
   enrollment.updatedAt = new Date().toISOString();
 
-  db.persist();
+  await db.saveEnrollment(enrollment);
   db.addAuditLog(req.user!.email, 'MARKS_UPDATED', 'enrollment', enrollment.id, `Updated assessment marks for enrollment ${enrollment.id} (${calc.overallPercentage}%, Grade: ${calc.grade})`, req.ip);
 
   res.json({ success: true, data: enrollment, calculation: calc });
@@ -522,7 +521,7 @@ router.get('/grading-config', (req: AuthenticatedRequest, res: Response) => {
   res.json({ success: true, data: config });
 });
 
-router.put('/grading-config', (req: AuthenticatedRequest, res: Response) => {
+router.put('/grading-config', async (req: AuthenticatedRequest, res: Response) => {
   const { title, method, passingPercentage, parameters, rules } = req.body;
 
   const validation = validateGradingConfiguration({
@@ -561,7 +560,7 @@ router.put('/grading-config', (req: AuthenticatedRequest, res: Response) => {
     config.updatedAt = new Date().toISOString();
   }
 
-  db.persist();
+  await db.saveGradingConfig(config);
   db.addAuditLog(req.user!.email, 'GRADING_CONFIG_UPDATED', 'grading', config.id, `Updated grading configuration (${method} method, ${passingPercentage}% pass threshold)`, req.ip);
 
   res.json({ success: true, data: config });
@@ -597,7 +596,7 @@ router.get('/templates', (req: AuthenticatedRequest, res: Response) => {
   res.json({ success: true, data: db.templates });
 });
 
-router.post('/templates', (req: AuthenticatedRequest, res: Response) => {
+router.post('/templates', async (req: AuthenticatedRequest, res: Response) => {
   const { name, description, themeStyle, primaryColor, accentColor, secondaryColor, borderStyle, showFatherName, showGradeFront, showSeal, showQR, showSignatures } = req.body;
 
   const newTemplate = {
@@ -617,8 +616,7 @@ router.post('/templates', (req: AuthenticatedRequest, res: Response) => {
     isDefault: false,
   };
 
-  db.templates.push(newTemplate);
-  db.persist();
+  await db.saveTemplate(newTemplate);
   res.status(201).json({ success: true, data: newTemplate });
 });
 
@@ -973,10 +971,10 @@ router.get('/settings', (req: AuthenticatedRequest, res: Response) => {
   res.json({ success: true, data: db.settings });
 });
 
-router.put('/settings', (req: AuthenticatedRequest, res: Response) => {
+router.put('/settings', async (req: AuthenticatedRequest, res: Response) => {
   const updates = req.body;
   Object.assign(db.settings, updates);
-  db.persist();
+  await db.saveSettings(db.settings);
 
   db.addAuditLog(req.user!.email, 'SETTINGS_UPDATED', 'settings', undefined, 'Updated institute settings and certificate branding', req.ip);
 
@@ -1040,23 +1038,6 @@ router.post('/database/connect', async (req: AuthenticatedRequest, res: Response
     }
   } catch (err: any) {
     res.status(500).json({ success: false, message: err?.message || 'Failed to connect to PostgreSQL' });
-  }
-});
-
-router.post('/database/sync', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!db.isPostgres) {
-      res.status(400).json({ success: false, message: 'Cannot sync: PostgreSQL is not currently connected.' });
-      return;
-    }
-    await db.syncToPostgresAsync();
-    res.json({
-      success: true,
-      message: 'Full synchronization to PostgreSQL completed successfully.',
-      data: db.getDatabaseStatus(),
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err?.message || 'Synchronization failed' });
   }
 });
 

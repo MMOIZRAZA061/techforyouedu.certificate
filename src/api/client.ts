@@ -224,10 +224,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  syncDatabase: () =>
-    request<{ success: boolean; message: string; data: any }>('/api/admin/database/sync', {
-      method: 'POST',
-    }),
   refreshDatabase: () =>
     request<{ success: boolean; message: string; data: any }>('/api/admin/database/refresh', {
       method: 'POST',

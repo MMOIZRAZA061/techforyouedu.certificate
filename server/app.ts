@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { db } from './db.js';
@@ -52,6 +52,41 @@ app.get(['/api/download-zip', '/download-zip'], (req, res) => {
     res.status(404).send('ZIP file not found.');
   }
 });
+
+// ------------------------------------------------------------
+// Every data request must read from PostgreSQL, never from a
+// process-local snapshot. Serverless instances do not share memory,
+// so a stale snapshot could otherwise serve a deleted record or
+// write it back to the database. Health and database-management
+// endpoints stay reachable so an admin can repair the connection.
+// ------------------------------------------------------------
+const requireLiveData = async (req: Request, res: Response, next: NextFunction) => {
+  const url = req.originalUrl || req.url;
+  if (url.includes('/database/')) {
+    next();
+    return;
+  }
+
+  if (!db.isPostgres) {
+    res.status(503).json({
+      success: false,
+      message: 'PostgreSQL is not connected. Data is unavailable until the database connection is restored.',
+    });
+    return;
+  }
+
+  try {
+    await db.ensureFresh();
+    next();
+  } catch (err: any) {
+    res.status(503).json({
+      success: false,
+      message: err?.message || 'Could not read from PostgreSQL.',
+    });
+  }
+};
+
+app.use(['/api', '/auth', '/public', '/admin'], requireLiveData);
 
 // Primary API routes (prefixed with /api)
 app.use('/api/auth', authRoutes);

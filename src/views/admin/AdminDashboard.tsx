@@ -69,7 +69,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [postgresUriInput, setPostgresUriInput] = useState('');
   const [saveToEnvChecked, setSaveToEnvChecked] = useState(true);
   const [isConnectingDb, setIsConnectingDb] = useState(false);
-  const [isSyncingDb, setIsSyncingDb] = useState(false);
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
 
   // Modals state
@@ -236,24 +235,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       showNotification('error', err.message || 'Failed to connect to PostgreSQL database.');
     } finally {
       setIsConnectingDb(false);
-    }
-  };
-
-  const handleSyncPostgres = async () => {
-    setIsSyncingDb(true);
-    try {
-      const res = await api.syncDatabase();
-      if (res.success) {
-        showNotification('success', 'Full database synchronization to PostgreSQL completed successfully!');
-        setDbStatus(res.data);
-        loadAllData();
-      } else {
-        showNotification('error', res.message || 'Sync failed.');
-      }
-    } catch (err: any) {
-      showNotification('error', err.message || 'Sync failed.');
-    } finally {
-      setIsSyncingDb(false);
     }
   };
 
@@ -2537,15 +2518,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <div className="flex items-center gap-2 self-start sm:self-center">
                   {dbStatus?.connected ? (
                     <>
-                      <button
-                        type="button"
-                        onClick={handleSyncPostgres}
-                        disabled={isSyncingDb}
-                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin' : ''}`} />
-                        <span>{isSyncingDb ? 'Syncing...' : 'Sync PostgreSQL Now'}</span>
-                      </button>
                       <button
                         type="button"
                         onClick={handleRefreshPostgres}
