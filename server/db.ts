@@ -579,169 +579,166 @@ class DatabaseService {
     if (!this.pool || !this.isConnected) return;
 
     try {
-      const certCountRes = await this.pool.query('SELECT COUNT(*) FROM certificates;');
-      const courseCountRes = await this.pool.query('SELECT COUNT(*) FROM courses;');
-      const certCount = parseInt(certCountRes.rows[0]?.count || '0', 10);
-      const courseCount = parseInt(courseCountRes.rows[0]?.count || '0', 10);
+      // Always load ALL tables from PostgreSQL so every record (students, courses,
+      // enrollments, certificates, etc.) persists across restarts regardless of
+      // whether certificates/courses exist yet. Postgres is the source of truth.
+      console.log('📥 Loading all records from PostgreSQL...');
 
-      if (certCount > 0 || courseCount > 0) {
-        console.log(`📥 Loading existing records from PostgreSQL (${certCount} certificates, ${courseCount} courses)...`);
-        const adminsRes = await this.pool.query('SELECT * FROM admins;');
-        const studentsRes = await this.pool.query('SELECT * FROM students ORDER BY created_at DESC;');
-        const coursesRes = await this.pool.query('SELECT * FROM courses ORDER BY code ASC;');
-        const enrollmentsRes = await this.pool.query('SELECT * FROM enrollments;');
-        const gradingRes = await this.pool.query('SELECT * FROM grading_configs;');
-        const templatesRes = await this.pool.query('SELECT * FROM templates;');
-        const certificatesRes = await this.pool.query('SELECT * FROM certificates ORDER BY created_at DESC;');
-        const settingsRes = await this.pool.query('SELECT data FROM institute_settings WHERE id = $1;', ['main']);
-        const auditRes = await this.pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 500;');
+      const adminsRes = await this.pool.query('SELECT * FROM admins;');
+      const studentsRes = await this.pool.query('SELECT * FROM students ORDER BY created_at DESC;');
+      const coursesRes = await this.pool.query('SELECT * FROM courses ORDER BY code ASC;');
+      const enrollmentsRes = await this.pool.query('SELECT * FROM enrollments;');
+      const gradingRes = await this.pool.query('SELECT * FROM grading_configs;');
+      const templatesRes = await this.pool.query('SELECT * FROM templates;');
+      const certificatesRes = await this.pool.query('SELECT * FROM certificates ORDER BY created_at DESC;');
+      const settingsRes = await this.pool.query('SELECT data FROM institute_settings WHERE id = $1;', ['main']);
+      const auditRes = await this.pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 500;');
 
-        if (adminsRes.rows.length > 0) {
-          this.data.admins = adminsRes.rows.map((r) => ({
-            id: r.id,
-            email: r.email,
-            passwordHash: r.password_hash,
-            name: r.name,
-            role: r.role,
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            lastLogin: r.last_login ? new Date(r.last_login).toISOString() : undefined,
-          }));
-        }
+      const certCount = certificatesRes.rows.length;
+      const courseCount = coursesRes.rows.length;
+      console.log(`📥 Loaded ${certCount} certificates, ${courseCount} courses, ${studentsRes.rows.length} students from PostgreSQL.`);
 
-        if (studentsRes.rows.length > 0) {
-          this.data.students = studentsRes.rows.map((r) => ({
-            id: r.id,
-            studentIdNumber: r.student_id_number,
-            fullName: r.full_name,
-            fatherName: r.father_name,
-            phoneNumber: r.phone_number,
-            email: r.email || undefined,
-            cnicOrNationalId: r.cnic_or_national_id || undefined,
-            address: r.address || undefined,
-            status: r.status,
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
-          }));
-        }
-
-        if (coursesRes.rows.length > 0) {
-          this.data.courses = coursesRes.rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            code: r.code,
-            category: r.category,
-            duration: r.duration,
-            description: r.description,
-            learningOutcomes: r.learning_outcomes || [],
-            status: r.status,
-            defaultTemplateId: r.default_template_id,
-            gradingMethod: r.grading_method,
-            passingPercentage: Number(r.passing_percentage) || 50,
-            assessmentParameters: r.assessment_parameters || [],
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
-          }));
-        }
-
-        if (enrollmentsRes.rows.length > 0) {
-          this.data.enrollments = enrollmentsRes.rows.map((r) => ({
-            id: r.id,
-            studentId: r.student_id,
-            courseId: r.course_id,
-            enrollmentDate: r.enrollment_date,
-            status: r.status,
-            completionDate: r.completion_date || undefined,
-            certificateId: r.certificate_id || undefined,
-            marks: r.marks || {},
-            calculatedPercentage: r.calculated_percentage ? Number(r.calculated_percentage) : undefined,
-            calculatedGrade: r.calculated_grade || undefined,
-            calculatedResult: r.calculated_result || undefined,
-            isEligibleForCertificate: Boolean(r.is_eligible_for_certificate),
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
-          }));
-        }
-
-        if (gradingRes.rows.length > 0) {
-          this.data.gradingConfigs = gradingRes.rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            method: r.method,
-            passingPercentage: Number(r.passing_percentage) || 50,
-            isDefault: Boolean(r.is_default),
-            parameters: r.parameters || [],
-            rules: r.rules || [],
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
-          }));
-        }
-
-        if (templatesRes.rows.length > 0) {
-          this.data.templates = templatesRes.rows.map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            themeStyle: r.theme_style,
-            primaryColor: r.primary_color,
-            accentColor: r.accent_color,
-            secondaryColor: r.secondary_color,
-            borderStyle: r.border_style,
-            showFatherName: r.show_father_name,
-            showGradeFront: r.show_grade_front,
-            showSeal: r.show_seal,
-            showQR: r.show_qr,
-            showSignatures: r.show_signatures,
-            showFloatingCodeSigns: r.show_floating_code_signs,
-            isDefault: Boolean(r.is_default),
-          }));
-        }
-
-        if (certificatesRes.rows.length > 0) {
-          this.data.certificates = certificatesRes.rows.map((r) => ({
-            id: r.id,
-            serialNumber: r.serial_number,
-            verificationId: r.verification_id,
-            studentId: r.student_id,
-            courseId: r.course_id,
-            enrollmentId: r.enrollment_id || '',
-            issueDate: r.issue_date,
-            completionDate: r.completion_date || '',
-            status: r.status,
-            revocationReason: r.revocation_reason || undefined,
-            revokedAt: r.revoked_at ? new Date(r.revoked_at).toISOString() : undefined,
-            revokedBy: r.revoked_by || undefined,
-            issuedBy: r.snapshot?.metadata?.issuedBy || 'Tech For You Registrar',
-            qrCodeDataUrl: r.qr_code_data_url,
-            verificationUrl: r.verification_url,
-            snapshot: r.snapshot,
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
-          }));
-        }
-
-        if (settingsRes.rows.length > 0 && settingsRes.rows[0]?.data) {
-          this.data.settings = settingsRes.rows[0].data;
-        }
-
-        if (auditRes.rows.length > 0) {
-          this.data.auditLogs = auditRes.rows.map((r) => ({
-            id: r.id,
-            timestamp: r.timestamp ? new Date(r.timestamp).toISOString() : new Date().toISOString(),
-            actor: r.actor,
-            action: r.action,
-            entityType: r.entity_type,
-            entityId: r.entity_id || undefined,
-            details: r.details,
-            ipAddress: r.ip_address || undefined,
-          }));
-        }
-
-        console.log('✅ Synchronized PostgreSQL tables to in-memory store.');
-      } else {
-        // PostgreSQL tables are empty: do NOT re-seed seed data back into Postgres.
-        // Deleted records must persist across restarts; Postgres is the source of truth.
-        console.log('📭 PostgreSQL tables are empty. Skipping auto re-seed so deletions persist.');
+      if (adminsRes.rows.length > 0) {
+        this.data.admins = adminsRes.rows.map((r) => ({
+          id: r.id,
+          email: r.email,
+          passwordHash: r.password_hash,
+          name: r.name,
+          role: r.role,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          lastLogin: r.last_login ? new Date(r.last_login).toISOString() : undefined,
+        }));
       }
+
+      if (studentsRes.rows.length > 0) {
+        this.data.students = studentsRes.rows.map((r) => ({
+          id: r.id,
+          studentIdNumber: r.student_id_number,
+          fullName: r.full_name,
+          fatherName: r.father_name,
+          phoneNumber: r.phone_number,
+          email: r.email || undefined,
+          cnicOrNationalId: r.cnic_or_national_id || undefined,
+          address: r.address || undefined,
+          status: r.status,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+
+      if (coursesRes.rows.length > 0) {
+        this.data.courses = coursesRes.rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          code: r.code,
+          category: r.category,
+          duration: r.duration,
+          description: r.description,
+          learningOutcomes: r.learning_outcomes || [],
+          status: r.status,
+          defaultTemplateId: r.default_template_id,
+          gradingMethod: r.grading_method,
+          passingPercentage: Number(r.passing_percentage) || 50,
+          assessmentParameters: r.assessment_parameters || [],
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+
+      if (enrollmentsRes.rows.length > 0) {
+        this.data.enrollments = enrollmentsRes.rows.map((r) => ({
+          id: r.id,
+          studentId: r.student_id,
+          courseId: r.course_id,
+          enrollmentDate: r.enrollment_date,
+          status: r.status,
+          completionDate: r.completion_date || undefined,
+          certificateId: r.certificate_id || undefined,
+          marks: r.marks || {},
+          calculatedPercentage: r.calculated_percentage ? Number(r.calculated_percentage) : undefined,
+          calculatedGrade: r.calculated_grade || undefined,
+          calculatedResult: r.calculated_result || undefined,
+          isEligibleForCertificate: Boolean(r.is_eligible_for_certificate),
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+
+      if (gradingRes.rows.length > 0) {
+        this.data.gradingConfigs = gradingRes.rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          method: r.method,
+          passingPercentage: Number(r.passing_percentage) || 50,
+          isDefault: Boolean(r.is_default),
+          parameters: r.parameters || [],
+          rules: r.rules || [],
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+
+      if (templatesRes.rows.length > 0) {
+        this.data.templates = templatesRes.rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          themeStyle: r.theme_style,
+          primaryColor: r.primary_color,
+          accentColor: r.accent_color,
+          secondaryColor: r.secondary_color,
+          borderStyle: r.border_style,
+          showFatherName: r.show_father_name,
+          showGradeFront: r.show_grade_front,
+          showSeal: r.show_seal,
+          showQR: r.show_qr,
+          showSignatures: r.show_signatures,
+          showFloatingCodeSigns: r.show_floating_code_signs,
+          isDefault: Boolean(r.is_default),
+        }));
+      }
+
+      if (certificatesRes.rows.length > 0) {
+        this.data.certificates = certificatesRes.rows.map((r) => ({
+          id: r.id,
+          serialNumber: r.serial_number,
+          verificationId: r.verification_id,
+          studentId: r.student_id,
+          courseId: r.course_id,
+          enrollmentId: r.enrollment_id || '',
+          issueDate: r.issue_date,
+          completionDate: r.completion_date || '',
+          status: r.status,
+          revocationReason: r.revocation_reason || undefined,
+          revokedAt: r.revoked_at ? new Date(r.revoked_at).toISOString() : undefined,
+          revokedBy: r.revoked_by || undefined,
+          issuedBy: r.snapshot?.metadata?.issuedBy || 'Tech For You Registrar',
+          qrCodeDataUrl: r.qr_code_data_url,
+          verificationUrl: r.verification_url,
+          snapshot: r.snapshot,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+
+      if (settingsRes.rows.length > 0 && settingsRes.rows[0]?.data) {
+        this.data.settings = settingsRes.rows[0].data;
+      }
+
+      if (auditRes.rows.length > 0) {
+        this.data.auditLogs = auditRes.rows.map((r) => ({
+          id: r.id,
+          timestamp: r.timestamp ? new Date(r.timestamp).toISOString() : new Date().toISOString(),
+          actor: r.actor,
+          action: r.action,
+          entityType: r.entity_type,
+          entityId: r.entity_id || undefined,
+          details: r.details,
+          ipAddress: r.ip_address || undefined,
+        }));
+      }
+
+      console.log('✅ Synchronized all PostgreSQL tables to in-memory store.');
     } catch (err) {
       console.error('Error during PostgreSQL synchronization:', err);
     }
@@ -1046,6 +1043,12 @@ class DatabaseService {
     if (this.pool && this.isConnected) {
       this.syncToPostgresAsync().catch((err) => console.error('PostgreSQL async persist error:', err));
     }
+  }
+
+  // Force re-sync from PostgreSQL (pull latest data into memory without restarting)
+  async refreshFromPostgres(): Promise<void> {
+    if (!this.pool || !this.isConnected) return;
+    await this.syncFromPostgresOrSeed();
   }
 
   getDatabaseStatus(): DatabaseStatus {

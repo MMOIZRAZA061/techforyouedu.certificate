@@ -1087,4 +1087,23 @@ router.post('/database/disconnect', async (req: AuthenticatedRequest, res: Respo
   }
 });
 
+// Refresh / pull latest data from PostgreSQL into memory (no restart required)
+router.post('/database/refresh', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!db.isPostgres) {
+      res.status(400).json({ success: false, message: 'PostgreSQL is not currently connected.' });
+      return;
+    }
+    await db.refreshFromPostgres();
+    db.addAuditLog(req.user!.email, 'SETTINGS_UPDATED', 'settings', undefined, 'Refreshed data from PostgreSQL.', req.ip);
+    res.json({
+      success: true,
+      message: 'Data refreshed from PostgreSQL successfully.',
+      data: db.getDatabaseStatus(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || 'Refresh failed' });
+  }
+});
+
 export default router;

@@ -228,6 +228,10 @@ export const api = {
     request<{ success: boolean; message: string; data: any }>('/api/admin/database/sync', {
       method: 'POST',
     }),
+  refreshDatabase: () =>
+    request<{ success: boolean; message: string; data: any }>('/api/admin/database/refresh', {
+      method: 'POST',
+    }),
   disconnectDatabase: () =>
     request<{ success: boolean; message: string; data: any }>('/api/admin/database/disconnect', {
       method: 'POST',

@@ -70,6 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [saveToEnvChecked, setSaveToEnvChecked] = useState(true);
   const [isConnectingDb, setIsConnectingDb] = useState(false);
   const [isSyncingDb, setIsSyncingDb] = useState(false);
+  const [isRefreshingDb, setIsRefreshingDb] = useState(false);
 
   // Modals state
   const [previewCert, setPreviewCert] = useState<Certificate | null>(null);
@@ -253,6 +254,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       showNotification('error', err.message || 'Sync failed.');
     } finally {
       setIsSyncingDb(false);
+    }
+  };
+
+  const handleRefreshPostgres = async () => {
+    setIsRefreshingDb(true);
+    try {
+      const res = await api.refreshDatabase();
+      if (res.success) {
+        showNotification('success', 'Data refreshed from PostgreSQL successfully!');
+        setDbStatus(res.data);
+        loadAllData();
+      } else {
+        showNotification('error', res.message || 'Refresh failed.');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Refresh failed.');
+    } finally {
+      setIsRefreshingDb(false);
     }
   };
 
@@ -2526,6 +2545,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin' : ''}`} />
                         <span>{isSyncingDb ? 'Syncing...' : 'Sync PostgreSQL Now'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRefreshPostgres}
+                        disabled={isRefreshingDb}
+                        className="px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingDb ? 'animate-spin' : ''}`} />
+                        <span>{isRefreshingDb ? 'Refreshing...' : 'Refresh from DB'}</span>
                       </button>
                       <button
                         type="button"
