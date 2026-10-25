@@ -51,7 +51,11 @@ export interface DatabaseStatus {
 
 const ENV_FILE = path.resolve(process.cwd(), '.env');
 
-// Default Seed Data Generator
+// ============================================================
+// SEED DATA — only used as initial memory defaults.
+// Postgres is the source of truth; this seed is NEVER pushed
+// into an empty Postgres database (deleted records must stay deleted).
+// ============================================================
 async function generateInitialDatabase(): Promise<DatabaseSchema> {
   const passwordHash = bcryptjs.hashSync('admin123', 10);
 
@@ -216,7 +220,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       duration: '6 Months (480 Academic Hours)',
       description: 'In-depth specialization covering Python data engineering, statistical modeling, machine learning algorithms, deep neural networks, and generative AI deployment.',
       status: 'active',
-      defaultTemplateId: 'tmpl-sovereign-navy',
+      defaultTemplateId: 'tmpl-modern-minimal',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
@@ -280,11 +284,15 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
   };
 }
 
+// ============================================================
+// DATABASE SERVICE — Postgres is the source of truth.
+// Memory is always overwritten from Postgres on sync.
+// Never re-seeds into Postgres (deleted records stay deleted).
+// ============================================================
 class DatabaseService {
   private data!: DatabaseSchema;
   private initialized = false;
 
-  // PostgreSQL Connection State
   private pool: pg.Pool | null = null;
   private isConnected = false;
   private dbName = '';
@@ -295,10 +303,10 @@ class DatabaseService {
   async init(): Promise<void> {
     if (this.initialized) return;
 
-    // Baseline memory schema structure
+    // 1. Baseline memory schema from seed
     this.data = await generateInitialDatabase();
 
-    // Check for PostgreSQL connection URI
+    // 2. Connect to PostgreSQL
     const postgresUri =
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
@@ -315,7 +323,6 @@ class DatabaseService {
     this.initialized = true;
   }
 
-  // Connect to PostgreSQL (Neon, Supabase, Cloud SQL, etc.)
   async connectPostgres(
     uri: string,
     saveToEnv = false
@@ -326,11 +333,8 @@ class DatabaseService {
     }
 
     try {
-      // Disconnect existing pool if any
       if (this.pool) {
-        try {
-          await this.pool.end();
-        } catch (_) {}
+        try { await this.pool.end(); } catch (_) {}
         this.pool = null;
         this.isConnected = false;
       }
@@ -343,7 +347,6 @@ class DatabaseService {
         idleTimeoutMillis: 30000,
       });
 
-      // Test connection
       const testRes = await newPool.query('SELECT current_database() as db, inet_server_addr() as host, version();');
       const parsedDbName = testRes.rows[0]?.db || 'neondb';
 
@@ -360,22 +363,16 @@ class DatabaseService {
       this.dbName = parsedDbName;
       this.dbHost = parsedHost;
       this.dbError = null;
-
-      // Mask password for safe display
       this.uriMasked = cleanUri.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••••••@');
 
       console.log(`🐘 Connected successfully to PostgreSQL database "${parsedDbName}" on host "${parsedHost}".`);
 
-      // Optionally write to .env
       if (saveToEnv) {
         this.writeEnvPostgresUri(cleanUri);
       }
 
-      // Ensure tables exist
       await this.ensureTablesExist();
-
-      // Sync data from Postgres or seed if empty
-      await this.syncFromPostgresOrSeed();
+      await this.syncFromPostgres();
 
       return {
         success: true,
@@ -395,7 +392,6 @@ class DatabaseService {
     }
   }
 
-  // Disconnect from PostgreSQL
   async disconnectPostgres(): Promise<{ success: boolean; message: string }> {
     try {
       if (this.pool) {
@@ -414,7 +410,6 @@ class DatabaseService {
     }
   }
 
-  // Write DATABASE_URL into .env file
   private writeEnvPostgresUri(uri: string): void {
     process.env.DATABASE_URL = uri;
     process.env.POSTGRES_URL = uri;
@@ -574,14 +569,14 @@ class DatabaseService {
     `);
   }
 
-  // Initial sync: populate memory from Postgres, or seed Postgres if empty
-  private async syncFromPostgresOrSeed(): Promise<void> {
+  // ============================================================
+  // PULL from Postgres → memory (source of truth).
+  // ALWAYS overwrites all arrays, even when empty — so deletions persist.
+  // ============================================================
+  private async syncFromPostgres(): Promise<void> {
     if (!this.pool || !this.isConnected) return;
 
     try {
-      // Always load ALL tables from PostgreSQL so every record (students, courses,
-      // enrollments, certificates, etc.) persists across restarts regardless of
-      // whether certificates/courses exist yet. Postgres is the source of truth.
       console.log('📥 Loading all records from PostgreSQL...');
 
       const adminsRes = await this.pool.query('SELECT * FROM admins;');
@@ -594,12 +589,7 @@ class DatabaseService {
       const settingsRes = await this.pool.query('SELECT data FROM institute_settings WHERE id = $1;', ['main']);
       const auditRes = await this.pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 500;');
 
-      const certCount = certificatesRes.rows.length;
-      const courseCount = coursesRes.rows.length;
-      console.log(`📥 Loaded ${certCount} certificates, ${courseCount} courses, ${studentsRes.rows.length} students from PostgreSQL.`);
-
-      // Always overwrite memory from PostgreSQL so deletions persist.
-      // If a table is empty in Postgres, memory is cleared to [] — no stale data survives.
+      // Always overwrite — empty Postgres table = empty memory (deletions persist)
       this.data.admins = adminsRes.rows.map((r) => ({
         id: r.id,
         email: r.email,
@@ -724,38 +714,39 @@ class DatabaseService {
         ipAddress: r.ip_address || undefined,
       }));
 
-      console.log('✅ Synchronized all PostgreSQL tables to in-memory store.');
+      console.log(
+        `✅ Synced from PostgreSQL — admins:${this.data.admins.length} students:${this.data.students.length} courses:${this.data.courses.length} enrollments:${this.data.enrollments.length} certificates:${this.data.certificates.length}`
+      );
     } catch (err) {
       console.error('Error during PostgreSQL synchronization:', err);
     }
   }
 
-  // Push current memory state to PostgreSQL
+  // ============================================================
+  // PUSH memory → Postgres (upsert). Called after mutations.
+  // ============================================================
   async syncToPostgresAsync(): Promise<void> {
     if (!this.pool || !this.isConnected) return;
 
     try {
-      // 1. Admins
       for (const a of this.data.admins) {
         await this.pool.query(
           `INSERT INTO admins (id, email, password_hash, name, role, created_at, last_login)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (id) DO UPDATE SET email=$2, password_hash=$3, name=$4, role=$5;`,
+           ON CONFLICT (id) DO UPDATE SET email=$2, password_hash=$3, name=$4, role=$5, last_login=$7;`,
           [a.id, a.email, a.passwordHash, a.name, a.role, a.createdAt, a.lastLogin || null]
         );
       }
 
-      // 2. Students
       for (const s of this.data.students) {
         await this.pool.query(
           `INSERT INTO students (id, student_id_number, full_name, father_name, phone_number, email, cnic_or_national_id, address, status, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (id) DO UPDATE SET full_name=$3, father_name=$4, phone_number=$5, email=$6, cnic_or_national_id=$7, address=$8, status=$9, updated_at=$11;`,
+           ON CONFLICT (id) DO UPDATE SET student_id_number=$2, full_name=$3, father_name=$4, phone_number=$5, email=$6, cnic_or_national_id=$7, address=$8, status=$9, updated_at=$11;`,
           [s.id, s.studentIdNumber, s.fullName, s.fatherName, s.phoneNumber, s.email || null, s.cnicOrNationalId || null, s.address || null, s.status || 'active', s.createdAt, s.updatedAt]
         );
       }
 
-      // 3. Courses
       for (const c of this.data.courses) {
         await this.pool.query(
           `INSERT INTO courses (id, title, code, category, duration, description, learning_outcomes, status, default_template_id, grading_method, passing_percentage, assessment_parameters, created_at, updated_at)
@@ -765,7 +756,6 @@ class DatabaseService {
         );
       }
 
-      // 4. Enrollments
       for (const e of this.data.enrollments) {
         await this.pool.query(
           `INSERT INTO enrollments (id, student_id, course_id, enrollment_date, status, completion_date, certificate_id, marks, calculated_percentage, calculated_grade, calculated_result, is_eligible_for_certificate, created_at, updated_at)
@@ -775,7 +765,6 @@ class DatabaseService {
         );
       }
 
-      // 5. Grading configs
       for (const gc of this.data.gradingConfigs) {
         await this.pool.query(
           `INSERT INTO grading_configs (id, title, method, passing_percentage, is_default, parameters, rules, created_at, updated_at)
@@ -785,7 +774,6 @@ class DatabaseService {
         );
       }
 
-      // 6. Templates
       for (const t of this.data.templates) {
         await this.pool.query(
           `INSERT INTO templates (id, name, description, theme_style, primary_color, accent_color, secondary_color, border_style, show_father_name, show_grade_front, show_seal, show_qr, show_signatures, show_floating_code_signs, is_default)
@@ -795,17 +783,15 @@ class DatabaseService {
         );
       }
 
-      // 7. Certificates
       for (const cert of this.data.certificates) {
         await this.pool.query(
           `INSERT INTO certificates (id, serial_number, verification_id, student_id, course_id, enrollment_id, template_id, issue_date, completion_date, status, revocation_reason, revoked_at, revoked_by, qr_code_data_url, verification_url, snapshot, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-           ON CONFLICT (id) DO UPDATE SET status=$10, revocation_reason=$11, revoked_at=$12, revoked_by=$13, snapshot=$16, updated_at=$18;`,
+           ON CONFLICT (id) DO UPDATE SET serial_number=$2, verification_id=$3, student_id=$4, course_id=$5, enrollment_id=$6, template_id=$7, issue_date=$8, completion_date=$9, status=$10, revocation_reason=$11, revoked_at=$12, revoked_by=$13, qr_code_data_url=$14, verification_url=$15, snapshot=$16, updated_at=$18;`,
           [cert.id, cert.serialNumber, cert.verificationId, cert.studentId, cert.courseId, cert.enrollmentId || null, cert.snapshot?.template?.id || null, cert.issueDate, cert.completionDate || null, cert.status || 'VALID', cert.revocationReason || null, cert.revokedAt || null, cert.revokedBy || null, cert.qrCodeDataUrl, cert.verificationUrl, JSON.stringify(cert.snapshot), cert.createdAt, cert.updatedAt]
         );
       }
 
-      // 8. Settings
       if (this.data.settings) {
         await this.pool.query(
           `INSERT INTO institute_settings (id, data) VALUES ($1, $2)
@@ -814,7 +800,6 @@ class DatabaseService {
         );
       }
 
-      // 9. Audit Logs
       for (const log of this.data.auditLogs.slice(0, 50)) {
         await this.pool.query(
           `INSERT INTO audit_logs (id, timestamp, actor, action, entity_type, entity_id, details, ip_address)
@@ -848,7 +833,10 @@ class DatabaseService {
   set certificates(val: Certificate[]) { this.data.certificates = val; }
   set courses(val: Course[]) { this.data.courses = val; }
 
-  // Direct Atomic PostgreSQL Operations
+  // ============================================================
+  // ATOMIC CRUD — updates memory AND Postgres together.
+  // ============================================================
+
   async insertStudent(student: Student): Promise<void> {
     this.data.students = this.data.students.filter((s) => s.id !== student.id);
     this.data.students.unshift(student);
@@ -904,7 +892,7 @@ class DatabaseService {
         await this.pool.query(
           `INSERT INTO certificates (id, serial_number, verification_id, student_id, course_id, enrollment_id, template_id, issue_date, completion_date, status, revocation_reason, revoked_at, revoked_by, qr_code_data_url, verification_url, snapshot, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-           ON CONFLICT (id) DO UPDATE SET status=$10, revocation_reason=$11, revoked_at=$12, revoked_by=$13, snapshot=$16, updated_at=$18;`,
+           ON CONFLICT (id) DO UPDATE SET serial_number=$2, verification_id=$3, student_id=$4, course_id=$5, enrollment_id=$6, template_id=$7, issue_date=$8, completion_date=$9, status=$10, revocation_reason=$11, revoked_at=$12, revoked_by=$13, qr_code_data_url=$14, verification_url=$15, snapshot=$16, updated_at=$18;`,
           [cert.id, cert.serialNumber, cert.verificationId, cert.studentId, cert.courseId, cert.enrollmentId || null, cert.snapshot?.template?.id || null, cert.issueDate, cert.completionDate || null, cert.status || 'VALID', cert.revocationReason || null, cert.revokedAt || null, cert.revokedBy || null, cert.qrCodeDataUrl, cert.verificationUrl, JSON.stringify(cert.snapshot), cert.createdAt, cert.updatedAt]
         );
       } catch (err) {
@@ -1018,7 +1006,7 @@ class DatabaseService {
     }
   }
 
-  // General sync mutation
+  // General sync mutation (push memory → Postgres)
   async persistAsync(): Promise<void> {
     if (this.pool && this.isConnected) {
       await this.syncToPostgresAsync();
@@ -1031,10 +1019,10 @@ class DatabaseService {
     }
   }
 
-  // Force re-sync from PostgreSQL (pull latest data into memory without restarting)
+  // Force re-sync from Postgres → memory (no restart required)
   async refreshFromPostgres(): Promise<void> {
     if (!this.pool || !this.isConnected) return;
-    await this.syncFromPostgresOrSeed();
+    await this.syncFromPostgres();
   }
 
   getDatabaseStatus(): DatabaseStatus {

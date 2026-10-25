@@ -363,19 +363,6 @@ router.delete('/courses/:id', async (req: AuthenticatedRequest, res: Response) =
   res.json({ success: true, message: `Course ${course.code} deleted successfully.` });
 });
 
-router.delete('/courses/:id', (req: AuthenticatedRequest, res: Response) => {
-  const course = db.courses.find((c) => c.id === req.params.id);
-  if (!course) {
-    res.status(404).json({ success: false, message: 'Course not found.' });
-    return;
-  }
-
-  course.status = 'archived';
-  db.persist();
-  db.addAuditLog(req.user!.email, 'COURSE_ARCHIVED', 'course', course.id, `Archived course ${course.code}`, req.ip);
-  res.json({ success: true, message: 'Course archived successfully.' });
-});
-
 // ==========================================
 // 4. ENROLLMENTS & MARKS MANAGEMENT
 // ==========================================
