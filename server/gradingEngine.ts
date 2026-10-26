@@ -32,7 +32,8 @@ export function calculateEnrollmentGrades(
 
   const parameterBreakdown = parameters.map((param) => {
     const rawObtained = obtainedMarksMap[param.id] ?? 0;
-    const obtained = Math.min(Math.max(0, Number(rawObtained) || 0), param.maxMarks);
+    const obtainedMarks = Number(rawObtained);
+    const obtained = Math.min(Math.max(0, isNaN(obtainedMarks) ? 0 : obtainedMarks), param.maxMarks);
     const percentage = param.maxMarks > 0 ? (obtained / param.maxMarks) * 100 : 0;
 
     totalMaxMarks += param.maxMarks;
