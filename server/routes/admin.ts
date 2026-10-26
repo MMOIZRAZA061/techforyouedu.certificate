@@ -902,7 +902,7 @@ router.post('/certificates/issue', async (req: AuthenticatedRequest, res: Respon
     // Generate QR code Data URL
     const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
       margin: 1,
-      width: 256,
+      width: 512,
       color: { dark: '#0f172a', light: '#ffffff' },
     });
 

@@ -909,7 +909,7 @@ export const CertificateRenderer: React.FC<CertificateRendererProps> = ({
           backdropFilter: 'blur(4px)',
         }}
       >
-        <img src={qrCodeDataUrl} alt="Scan to verify" style={{ width: 70, height: 70, display: 'block' }} />
+        <img src={qrCodeDataUrl} alt="Scan to verify" style={{ width: 90, height: 90, display: 'block' }} />
       </div>
     )}
                     <div className="font-mono" style={{ fontSize: 8.5, lineHeight: 1.7, color: inkFaint }}>
