@@ -95,7 +95,19 @@ export interface CertificateTemplate {
   id: string;
   name: string;
   description: string;
-  themeStyle: 'imperial_gold' | 'sovereign_navy' | 'modern_minimal' | 'academic_classic' | 'cyber_emerald' | 'web_development';
+  themeStyle:
+    | 'imperial_gold'
+    | 'sovereign_navy'
+    | 'modern_minimal'
+    | 'academic_classic'
+    | 'cyber_emerald'
+    | 'web_development'
+    | 'ai_neural_network'
+    | 'ai_quantum_aurora'
+    | 'ai_terminal_matrix'
+    | 'ai_ml_royal_gold'
+    | 'ai_cloud_azure'
+    | 'ai_vision_spectrum';
   primaryColor: string;
   accentColor: string;
   secondaryColor: string;

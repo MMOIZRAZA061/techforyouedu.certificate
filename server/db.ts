@@ -190,6 +190,109 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       showFloatingCodeSigns: true,
       isDefault: false,
     },
+    // ===== Professional AI-focused designs (6) =====
+    {
+      id: 'tmpl-ai-neural',
+      name: 'AI Neural Intelligence (Deep Indigo)',
+      description: 'Dark neural-network certificate with luminous indigo nodes, connecting synapses, monospace credential metadata and course-instructor accreditation.',
+      themeStyle: 'ai_neural_network',
+      primaryColor: '#0d1330',
+      accentColor: '#8ab4ff',
+      secondaryColor: '#a78bfa',
+      borderStyle: 'cyber_circuit',
+      showFatherName: true,
+      showGradeFront: true,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: false,
+      isDefault: false,
+    },
+    {
+      id: 'tmpl-ai-quantum',
+      name: 'Quantum AI Aurora (Cyan & Violet)',
+      description: 'Deep-space aurora gradients in cyan and violet for quantum computing and generative AI programs, with crisp monospace credential details.',
+      themeStyle: 'ai_quantum_aurora',
+      primaryColor: '#120a2e',
+      accentColor: '#22d3ee',
+      secondaryColor: '#c084fc',
+      borderStyle: 'geometric',
+      showFatherName: true,
+      showGradeFront: true,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: false,
+      isDefault: false,
+    },
+    {
+      id: 'tmpl-ai-terminal',
+      name: 'AI Terminal Matrix (Obsidian & Mint)',
+      description: 'Obsidian engineering console aesthetic with matrix grid, model-training tokens and mint accents — ideal for machine learning and MLOps credentials.',
+      themeStyle: 'ai_terminal_matrix',
+      primaryColor: '#06110e',
+      accentColor: '#34d399',
+      secondaryColor: '#22d3ee',
+      borderStyle: 'cyber_circuit',
+      showFatherName: false,
+      showGradeFront: true,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: true,
+      isDefault: false,
+    },
+    {
+      id: 'tmpl-ai-royal-gold',
+      name: 'AI & Machine Learning Royal Gold',
+      description: 'Prestigious ivory and gold certificate with ornate corner flourishes, ceremonial crest seal and classic serif typography for AI & ML distinction.',
+      themeStyle: 'ai_ml_royal_gold',
+      primaryColor: '#b8912f',
+      accentColor: '#b8912f',
+      secondaryColor: '#7c5e12',
+      borderStyle: 'ornate',
+      showFatherName: true,
+      showGradeFront: true,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: false,
+      isDefault: false,
+    },
+    {
+      id: 'tmpl-ai-cloud-azure',
+      name: 'AI Cloud Architecture (Azure Minimal)',
+      description: 'Clean corporate azure design with fine engineering grid, generous whitespace and high-legibility typography for AI cloud and data engineering tracks.',
+      themeStyle: 'ai_cloud_azure',
+      primaryColor: '#0b2545',
+      accentColor: '#0ea5e9',
+      secondaryColor: '#0369a1',
+      borderStyle: 'minimal',
+      showFatherName: true,
+      showGradeFront: false,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: false,
+      isDefault: false,
+    },
+    {
+      id: 'tmpl-ai-vision-spectrum',
+      name: 'AI Vision Spectrum (Modern)',
+      description: 'Contemporary light certificate framed by a magenta-to-cyan spectrum band, designed for computer vision, robotics and intelligent systems awards.',
+      themeStyle: 'ai_vision_spectrum',
+      primaryColor: '#191322',
+      accentColor: '#d6219b',
+      secondaryColor: '#06b6d4',
+      borderStyle: 'geometric',
+      showFatherName: true,
+      showGradeFront: true,
+      showSeal: true,
+      showQR: true,
+      showSignatures: true,
+      showFloatingCodeSigns: false,
+      isDefault: false,
+    },
   ];
 
   const courses: Course[] = [
@@ -220,7 +323,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       duration: '6 Months (480 Academic Hours)',
       description: 'In-depth specialization covering Python data engineering, statistical modeling, machine learning algorithms, deep neural networks, and generative AI deployment.',
       status: 'active',
-      defaultTemplateId: 'tmpl-modern-minimal',
+      defaultTemplateId: 'tmpl-ai-neural',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
@@ -294,6 +397,7 @@ class DatabaseService {
   private initialized = false;
 
   private pool: pg.Pool | null = null;
+  private builtInTemplates: CertificateTemplate[] = [];
   private isConnected = false;
   private dbName = '';
   private dbHost = '';
@@ -305,6 +409,7 @@ class DatabaseService {
 
     // 1. Baseline memory schema from seed
     this.data = await generateInitialDatabase();
+    this.builtInTemplates = this.data.templates;
 
     // 2. Connect to PostgreSQL
     const postgresUri =
@@ -372,6 +477,7 @@ class DatabaseService {
       }
 
       await this.ensureTablesExist();
+      await this.insertMissingBuiltInTemplates();
       await this.syncFromPostgres();
 
       return {
@@ -567,6 +673,43 @@ class DatabaseService {
         ip_address TEXT
       );
     `);
+  }
+
+  // Adds newly shipped built-in certificate designs to an existing database
+  // without touching or overwriting any template row the institute already owns.
+  private async insertMissingBuiltInTemplates(): Promise<void> {
+    if (!this.pool || !this.isConnected || this.builtInTemplates.length === 0) return;
+
+    let inserted = 0;
+    for (const template of this.builtInTemplates) {
+      const result = await this.pool.query(
+        `INSERT INTO templates (id, name, description, theme_style, primary_color, accent_color, secondary_color, border_style, show_father_name, show_grade_front, show_seal, show_qr, show_signatures, show_floating_code_signs, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         ON CONFLICT (id) DO NOTHING;`,
+        [
+          template.id,
+          template.name,
+          template.description,
+          template.themeStyle,
+          template.primaryColor,
+          template.accentColor,
+          template.secondaryColor,
+          template.borderStyle,
+          template.showFatherName !== false,
+          template.showGradeFront !== false,
+          template.showSeal !== false,
+          template.showQR !== false,
+          template.showSignatures !== false,
+          template.showFloatingCodeSigns !== false,
+          Boolean(template.isDefault),
+        ]
+      );
+      inserted += result.rowCount || 0;
+    }
+
+    if (inserted > 0) {
+      console.log(`🎨 Added ${inserted} new built-in certificate template(s) to PostgreSQL.`);
+    }
   }
 
   // ============================================================

@@ -1,5 +1,144 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Self-hosted certificate typefaces.
+   Same-origin files so PDF/JPG exports can embed them (Google
+   Fonts is cross-origin and gets dropped by the rasteriser).
+   ============================================================ */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/cinzel-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/cinzel-normal-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/cinzel-normal-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/playfair-display-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/playfair-display-normal-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/playfair-display-italic-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-normal-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-normal-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-normal-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-normal-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-normal-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-normal-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/fira-code-normal-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/fira-code-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Dancing Script';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/dancing-script-normal-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Dancing Script';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/dancing-script-normal-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Alex Brush';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/alex-brush-normal-400.woff2') format('woff2');
+}
+
 @layer utilities {
   .font-cinzel {
     font-family: 'Cinzel', Georgia, serif;
@@ -11,7 +150,7 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
   .font-code {
     font-family: 'Fira Code', 'JetBrains Mono', monospace;
@@ -47,14 +186,15 @@
   animation: floatReverse 7s ease-in-out infinite;
 }
 
-/* Certificate print styles - Default Landscape 2 Pages (Certificate & Marksheet only) */
+/* Certificate print styles - A4 landscape, exactly two pages. */
 @page {
-  size: landscape;
+  size: A4 landscape;
   margin: 0mm;
 }
 
 @media print {
-  html, body {
+  html,
+  body {
     width: 297mm !important;
     height: auto !important;
     margin: 0 !important;
@@ -64,7 +204,6 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide headers, footers, navigation, controls, and buttons */
   header,
   footer,
   nav,
@@ -75,7 +214,6 @@
     display: none !important;
   }
 
-  /* Reset outer application wrappers & modals so no gray backdrop or shadows appear */
   body > * {
     background: transparent !important;
   }
@@ -83,7 +221,8 @@
   .certificate-modal-overlay,
   .certificate-modal-content,
   .certificate-viewer-wrapper,
-  .certificate-scroll-container {
+  .certificate-fit-wrapper,
+  .certificate-scaler {
     position: static !important;
     display: block !important;
     max-width: none !important;
@@ -98,22 +237,22 @@
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: visible !important;
+    transform: none !important;
   }
 
-  /* Exactly 2 landscape pages: Certificate (Page 1) and Marksheet (Page 2) */
+  /* Exactly 2 landscape pages: certificate, then transcript. */
   .certificate-print-page {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
     position: relative !important;
     width: 297mm !important;
-    height: 209mm !important;
-    min-height: 209mm !important;
-    max-height: 209mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    max-height: 210mm !important;
+    min-width: 297mm !important;
     aspect-ratio: auto !important;
     box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 6mm !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -122,43 +261,13 @@
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Marksheet / Back side: avoid breaking so no 3rd blank page is produced */
   .certificate-print-page-back,
   .certificate-print-page:last-child {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
-}
-
-/* Custom pattern and decorative styles for luxury certificate frames */
-.certificate-guilloche-bg {
-  background-color: #fafbfc;
-  background-image: radial-gradient(#10b981 0.75px, transparent 0.75px), radial-gradient(#064e3b 0.75px, #fafbfc 0.75px);
-  background-size: 28px 28px;
-  background-position: 0 0, 14px 14px;
-  background-opacity: 0.05;
-}
-
-.certificate-cyber-dark-bg {
-  background-color: #060b09;
-  background-image: 
-    linear-gradient(rgba(16, 185, 129, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-.cyber-green-text {
-  background: linear-gradient(135deg, #10b981 0%, #00ff66 50%, #059669 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.cyber-green-glow {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.25), 0 0 40px rgba(0, 255, 102, 0.1);
-}
-
-.cyber-green-border {
-  border-image: linear-gradient(to right, #059669, #00ff66, #10b981, #00ff66, #059669) 1;
 }
