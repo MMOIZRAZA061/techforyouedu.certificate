@@ -114,18 +114,8 @@ router.post('/students', async (req: AuthenticatedRequest, res: Response) => {
     // Clean phone
     const cleanPhone = phoneNumber.trim();
 
-    // Check duplicate phone or studentId
-    const existingPhone = db.students.find((s) => s.phoneNumber === cleanPhone);
-    if (existingPhone) {
-      res.status(400).json({
-        success: false,
-        message: `A student with phone number "${cleanPhone}" is already registered (${existingPhone.fullName}).`,
-      });
-      return;
-    }
 
     const autoIdNumber = studentIdNumber?.trim() || `TFY-STU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
     const existingId = db.students.find((s) => s.studentIdNumber.toLowerCase() === autoIdNumber.toLowerCase());
     if (existingId) {
       res.status(400).json({
@@ -406,23 +396,6 @@ router.post('/enrollments', async (req: AuthenticatedRequest, res: Response) => 
         return;
       }
 
-      // Check existing phone
-      let student = db.students.find((s) => s.phoneNumber === phoneNumber.trim());
-      if (!student) {
-        student = {
-          id: `stu-${Date.now()}`,
-          studentIdNumber: `TFY-STU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-          fullName: fullName.trim(),
-          fatherName: fatherName.trim(),
-          phoneNumber: phoneNumber.trim(),
-          email: email?.trim(),
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        db.students.unshift(student);
-      }
-      targetStudentId = student.id;
     }
 
     if (!targetStudentId || !courseId) {
