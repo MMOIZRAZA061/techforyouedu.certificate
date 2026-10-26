@@ -513,6 +513,35 @@ router.put('/enrollments/:id/marks', async (req: AuthenticatedRequest, res: Resp
   res.json({ success: true, data: enrollment, calculation: calc });
 });
 
+// Delete Enrollment
+router.delete('/enrollments/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const enrollment = db.enrollments.find((e) => e.id === req.params.id);
+  if (!enrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment record not found.' });
+    return;
+  }
+
+  // If this enrollment has a linked certificate, unlink it
+  if (enrollment.certificateId) {
+    const linkedCert = db.certificates.find((c) => c.id === enrollment.certificateId);
+    if (linkedCert) {
+      linkedCert.status = 'VALID';
+      linkedCert.updatedAt = new Date().toISOString();
+      await db.insertCertificate(linkedCert);
+    }
+    enrollment.certificateId = undefined;
+    enrollment.status = 'in_progress';
+  }
+
+  await db.deleteEnrollment(enrollment.id);
+
+  db.addAuditLog(req.user!.email, 'ENROLLMENT_DELETED', 'enrollment', enrollment.id, `Deleted enrollment ${enrollment.id} for student ${enrollment.studentId} in course ${enrollment.courseId}`, req.ip);
+  res.json({
+    success: true,
+    message: `Enrollment ${enrollment.id} deleted successfully.`,
+  });
+});
+
 // ==========================================
 // 5. GRADING CONFIGURATION
 // ==========================================

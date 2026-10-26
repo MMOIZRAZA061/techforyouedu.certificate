@@ -900,16 +900,18 @@ export const CertificateRenderer: React.FC<CertificateRendererProps> = ({
                   <div className="flex items-center gap-3 justify-self-start">
                     {template.showQR && qrCodeDataUrl && (
                       <div
-                        style={{
-                          background: '#fff',
-                          padding: 4,
-                          borderRadius: 4,
-                          border: `1px solid ${theme.line}`,
-                        }}
-                      >
-                        <img src={qrCodeDataUrl} alt="Scan to verify" style={{ width: 60, height: 60, display: 'block' }} />
-                      </div>
-                    )}
+        style={{
+          background: theme.isDark ? 'rgba(255,255,255,0.1)' : '#fff',
+          padding: 6,
+          borderRadius: 8,
+          border: `2px solid ${theme.accent}`,
+          boxShadow: `0 0 12px ${theme.accentSoft}`,
+          backdropFilter: 'blur(4px)',
+        }}
+      >
+        <img src={qrCodeDataUrl} alt="Scan to verify" style={{ width: 70, height: 70, display: 'block' }} />
+      </div>
+    )}
                     <div className="font-mono" style={{ fontSize: 8.5, lineHeight: 1.7, color: inkFaint }}>
                       <div>
                         <span style={{ color: inkSoft }}>SERIAL </span>
