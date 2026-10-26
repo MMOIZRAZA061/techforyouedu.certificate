@@ -99,7 +99,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
   const gradingConfig: GradingConfiguration = {
     id: 'gc-default',
     title: 'Standard Institute Weightage Scheme (2026)',
-    method: 'weighted',
+    method: 'total',
     passingPercentage: 50,
     isDefault: true,
     createdAt: new Date().toISOString(),
