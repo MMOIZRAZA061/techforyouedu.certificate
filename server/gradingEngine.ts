@@ -6,7 +6,6 @@ export interface CalculationResult {
     name: string;
     maxMarks: number;
     obtainedMarks: number;
-    weightage: number;
     percentage: number;
   }>;
   totalMaxMarks: number;
@@ -44,30 +43,17 @@ export function calculateEnrollmentGrades(
       name: param.name,
       maxMarks: param.maxMarks,
       obtainedMarks: obtained,
-      weightage: param.weightage,
       percentage: Number(percentage.toFixed(2)),
     };
   });
 
   let overallPercentage = 0;
 
-  if (method === 'weighted') {
-    // Weighted sum: Sum of (obtained/max * weight)
-    const totalWeights = parameters.reduce((sum, p) => sum + (p.weightage || 0), 0);
-    const effectiveTotalWeight = totalWeights > 0 ? totalWeights : 100;
-
-    const weightedScore = parameterBreakdown.reduce((sum, item) => {
-      const paramWeight = item.weightage || 0;
-      return sum + (item.percentage * (paramWeight / effectiveTotalWeight));
-    }, 0);
-
-    overallPercentage = Number(weightedScore.toFixed(2));
-  } else {
-    // Total marks percentage
-    if (totalMaxMarks > 0) {
-      overallPercentage = Number(((totalObtainedMarks / totalMaxMarks) * 100).toFixed(2));
-    }
+  // Total marks percentage (only method supported)
+  if (totalMaxMarks > 0) {
+    overallPercentage = Number(((totalObtainedMarks / totalMaxMarks) * 100).toFixed(2));
   }
+  // method === 'total' is the only supported method; weighted is ignored
 
   // Determine Grade and Result
   let assignedRule: GradeRule | undefined;
@@ -117,12 +103,7 @@ export function validateGradingConfiguration(config: Partial<GradingConfiguratio
       if (!param.maxMarks || param.maxMarks <= 0) errors.push(`Parameter "${param.name || `#${i + 1}`}" maximum marks must be greater than 0.`);
     });
 
-    if (config.method === 'weighted') {
-      const sumWeight = config.parameters.reduce((sum, p) => sum + (Number(p.weightage) || 0), 0);
-      if (Math.abs(sumWeight - 100) > 0.5) {
-        errors.push(`Weighted grading requires parameter weights to sum to exactly 100% (currently ${sumWeight.toFixed(1)}%).`);
-      }
-    }
+    // Weighted grading is no longer supported; only 'total' method is used
   }
 
   if (!config.rules || config.rules.length === 0) {

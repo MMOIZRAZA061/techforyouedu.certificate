@@ -38,7 +38,7 @@ export interface Course {
   learningOutcomes: CourseOutcome[];
   status: 'active' | 'archived';
   defaultTemplateId?: string;
-  gradingMethod?: 'total' | 'weighted';
+  gradingMethod: 'total';
   passingPercentage?: number;
   assessmentParameters?: AssessmentParameter[];
   createdAt: string;
@@ -49,7 +49,6 @@ export interface AssessmentParameter {
   id: string;
   name: string;
   maxMarks: number;
-  weightage: number; // percentage (e.g. 25%)
   isRequired: boolean;
   description?: string;
 }
@@ -65,7 +64,7 @@ export interface GradeRule {
 export interface GradingConfiguration {
   id: string;
   title: string;
-  method: 'total' | 'weighted';
+  method: 'total';
   passingPercentage: number;
   rules: GradeRule[];
   parameters: AssessmentParameter[];
@@ -140,13 +139,12 @@ export interface CertificateSnapshot {
     learningOutcomes: string[];
   };
   grading: {
-    method: 'total' | 'weighted';
+    method: 'total';
     parameters: Array<{
       parameterId: string;
       name: string;
       maxMarks: number;
       obtainedMarks: number;
-      weightage: number;
       percentage: number;
     }>;
     totalMaxMarks: number;

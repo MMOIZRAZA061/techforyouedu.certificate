@@ -292,7 +292,7 @@ router.post('/courses', async (req: AuthenticatedRequest, res: Response) => {
       learningOutcomes: outcomes,
       status: 'active',
       defaultTemplateId: defaultTemplateId || 'tmpl-web-development',
-      gradingMethod: gradingMethod === 'weighted' ? 'weighted' : 'total',
+      gradingMethod: 'total' as const,
       passingPercentage: Number(passingPercentage) > 0 ? Number(passingPercentage) : 50,
       assessmentParameters: parsedParameters,
       createdAt: new Date().toISOString(),
@@ -323,7 +323,7 @@ router.put('/courses/:id', async (req: AuthenticatedRequest, res: Response) => {
   if (description !== undefined) course.description = description.trim();
   if (defaultTemplateId !== undefined) course.defaultTemplateId = defaultTemplateId;
   if (status !== undefined) course.status = status;
-  if (gradingMethod !== undefined) course.gradingMethod = gradingMethod === 'weighted' ? 'weighted' : 'total';
+  if (gradingMethod !== undefined) course.gradingMethod = 'total' as const;
   if (passingPercentage !== undefined) course.passingPercentage = Number(passingPercentage) > 0 ? Number(passingPercentage) : 50;
 
   if (Array.isArray(assessmentParameters)) {

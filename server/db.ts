@@ -98,18 +98,18 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
 
   const gradingConfig: GradingConfiguration = {
     id: 'gc-default',
-    title: 'Standard Institute Weightage Scheme (2026)',
+    title: 'Standard Institute Grading Scheme (2026)',
     method: 'total',
     passingPercentage: 50,
     isDefault: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     parameters: [
-      { id: 'param-theory', name: 'Theory & Technical Foundations', maxMarks: 100, weightage: 25, isRequired: true, description: 'Written & architectural conceptual assessment' },
-      { id: 'param-practical', name: 'Hands-on Practical Labs & Coding', maxMarks: 100, weightage: 30, isRequired: true, description: 'Lab tests, debugging challenges, and real-time coding' },
-      { id: 'param-project', name: 'Comprehensive Capstone Project', maxMarks: 100, weightage: 25, isRequired: true, description: 'Production-ready full deployment & GitHub review' },
-      { id: 'param-viva', name: 'Technical Defense & Viva Voce', maxMarks: 50, weightage: 10, isRequired: true, description: 'Oral panel questioning & architecture explanation' },
-      { id: 'param-assignments', name: 'Continuous Assignments & Quizzes', maxMarks: 50, weightage: 10, isRequired: false, description: 'Weekly milestones and task submissions' },
+      { id: 'param-theory', name: 'Theory & Technical Foundations', maxMarks: 100, isRequired: true, description: 'Written & architectural conceptual assessment' },
+      { id: 'param-practical', name: 'Hands-on Practical Labs & Coding', maxMarks: 100, isRequired: true, description: 'Lab tests, debugging challenges, and real-time coding' },
+      { id: 'param-project', name: 'Comprehensive Capstone Project', maxMarks: 100, isRequired: true, description: 'Production-ready full deployment & GitHub review' },
+      { id: 'param-viva', name: 'Technical Defense & Viva Voce', maxMarks: 50, isRequired: true, description: 'Oral panel questioning & architecture explanation' },
+      { id: 'param-assignments', name: 'Continuous Assignments & Quizzes', maxMarks: 50, isRequired: false, description: 'Weekly milestones and task submissions' },
     ],
     rules: [
       { minPercentage: 90, grade: 'A+', resultLabel: 'Pass with High Distinction', isPassing: true, description: 'Outstanding performance across all theoretical & practical benchmarks' },
@@ -305,6 +305,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       description: 'Comprehensive industry program covering modern React 19, TypeScript, Node.js, Express, PostgreSQL / Neon database architecture, Docker containers, and cloud deployment.',
       status: 'active',
       defaultTemplateId: 'tmpl-imperial-gold',
+      gradingMethod: 'total' as const,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
@@ -324,6 +325,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       description: 'In-depth specialization covering Python data engineering, statistical modeling, machine learning algorithms, deep neural networks, and generative AI deployment.',
       status: 'active',
       defaultTemplateId: 'tmpl-ai-neural',
+      gradingMethod: 'total' as const,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
@@ -343,6 +345,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       description: 'Hands-on enterprise program covering Linux administration, Infrastructure as Code with Terraform, Kubernetes clustering, CI/CD pipelines, and cloud observability.',
       status: 'active',
       defaultTemplateId: 'tmpl-modern-minimal',
+      gradingMethod: 'total' as const,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
@@ -362,6 +365,7 @@ async function generateInitialDatabase(): Promise<DatabaseSchema> {
       description: 'Mastery in user research, design psychology, Figma component token systems, accessibility compliance (WCAG AA), and design-to-code workflow.',
       status: 'active',
       defaultTemplateId: 'tmpl-imperial-gold',
+      gradingMethod: 'total' as const,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       learningOutcomes: [
