@@ -896,7 +896,7 @@ router.post('/certificates/issue', async (req: AuthenticatedRequest, res: Respon
     const verificationId = crypto.randomUUID();
 
     // Construct Verification URL
-    const appUrl = process.env.APP_URL || 'https://techforyou.edu.pk';
+    const appUrl = process.env.APP_URL || 'https://techforyoueducertificate.vercel.app';
     const verificationUrl = `${appUrl}/verify/${verificationId}`;
 
     // Generate QR code Data URL
