@@ -513,6 +513,136 @@ router.put('/enrollments/:id/marks', async (req: AuthenticatedRequest, res: Resp
   res.json({ success: true, data: enrollment, calculation: calc });
 });
 
+// Export Enrollments as CSV
+router.get('/export/enrollments/csv', async (req: AuthenticatedRequest, res: Response) => {
+  const enrollments = db.enrollments;
+  const students = db.students;
+  const courses = db.courses;
+
+  const csvRows = enrollments.map((enr) => {
+    const student = students.find((s) => s.id === enr.studentId);
+    const course = courses.find((c) => c.id === enr.courseId);
+    return [
+      enr.id,
+      student?.fullName || '',
+      student?.studentIdNumber || '',
+      course?.code || '',
+      course?.title || '',
+      enr.enrollmentDate,
+      enr.status,
+      enr.calculatedPercentage !== undefined ? enr.calculatedPercentage : '',
+      enr.calculatedGrade || '',
+      enr.calculatedResult || '',
+      enr.isEligibleForCertificate ? 'ELIGIBLE' : 'INELIGIBLE',
+    ];
+  });
+
+  // CSV header
+  const header = ['Enrollment ID', 'Student Name', 'Student ID', 'Course Code', 'Course Title', 'Enrollment Date', 'Status', 'Percentage', 'Grade', 'Result', 'Eligibility'];
+  const csvContent = [header, ...csvRows]
+    .map((row) => row.map((cell) => `'${cell}'`.replace(/'/g, '')))  // quote and escape
+    .join('\n');
+
+  res.contentType('text/csv');
+  res.attachment(`Enrollments-Backup-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csvContent);
+});
+
+// Export Certificates as CSV
+router.get('/export/certificates/csv', async (req: AuthenticatedRequest, res: Response) => {
+  const certificates = db.certificates;
+
+  const csvRows = certificates.map((cert) => {
+    const student = db.students.find((s) => s.id === cert.studentId);
+    const course = db.courses.find((c) => c.id === cert.courseId);
+    return [
+      cert.id,
+      cert.serialNumber,
+      student?.fullName || '',
+      student?.studentIdNumber || '',
+      course?.code || '',
+      course?.title || '',
+      cert.issueDate,
+      cert.status,
+      cert.isEligibleForCertificate ? 'ELIGIBLE' : 'INELIGIBLE',
+      cert.verificationUrl || '',
+    ];
+  });
+
+  // CSV header
+  const header = ['Certificate ID', 'Serial Number', 'Student Name', 'Student ID', 'Course Code', 'Course Title', 'Issue Date', 'Status', 'Eligibility', 'Verification URL'];
+  const csvContent = [header, ...csvRows]
+    .map((row) => row.map((cell) => `'${cell}'`.replace(/'/g, '')))  // quote and escape
+    .join('\n');
+
+  res.contentType('text/csv');
+  res.attachment(`Certificates-Backup-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csvContent);
+});
+
+// Export Students as CSV
+router.get('/export/students/csv', async (req: AuthenticatedRequest, res: Response) => {
+  const students = db.students;
+
+  const csvRows = students.map((student) => {
+    const enrollments = db.enrollments.filter((e) => e.studentId === student.id);
+    const certs = db.certificates.filter((c) => c.studentId === student.id);
+    return [
+      student.id,
+      student.fullName,
+      student.fatherName,
+      student.phoneNumber,
+      student.email || '',
+      student.studentIdNumber || '',
+      enrollments.length,
+      certs.length,
+      student.status,
+      student.createdAt,
+    ];
+  });
+
+  // CSV header
+  const header = ['Student ID', 'Full Name', 'Father Name', 'Phone', 'Email', 'Student ID Number', 'Enrollments Count', 'Certificates Count', 'Status', 'Created At'];
+  const csvContent = [header, ...csvRows]
+    .map((row) => row.map((cell) => `'${cell}'`.replace(/'/g, '')))  // quote and escape
+    .join('\n');
+
+  res.contentType('text/csv');
+  res.attachment(`Students-Backup-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csvContent);
+});
+
+// Export Courses as CSV
+router.get('/export/courses/csv', async (req: AuthenticatedRequest, res: Response) => {
+  const courses = db.courses;
+
+  const csvRows = courses.map((course) => {
+    const enrollments = db.enrollments.filter((e) => e.courseId === course.id);
+    const certs = db.certificates.filter((c) => c.courseId === course.id);
+    return [
+      course.id,
+      course.code,
+      course.title,
+      course.category || '',
+      course.duration || '',
+      enrollments.length,
+      certs.length,
+      course.gradingMethod,
+      course.passingPercentage,
+    ];
+  });
+
+  // CSV header
+  const header = ['Course ID', 'Course Code', 'Title', 'Category', 'Duration', 'Enrollments Count', 'Certificates Count', 'Grading Method', 'Passing %'];
+  const csvContent = [header, ...csvRows]
+    .map((row) => row.map((cell) => `'${cell}'`.replace(/'/g, '')))  // quote and escape
+    .join('\n');
+
+  res.contentType('text/csv');
+  res.attachment(`Courses-Backup-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csvContent);
+});
+
 // Delete Enrollment
 router.delete('/enrollments/:id', async (req: AuthenticatedRequest, res: Response) => {
   const enrollment = db.enrollments.find((e) => e.id === req.params.id);
